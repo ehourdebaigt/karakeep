@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import BookmarkSavedToast from "@/components/utils/BookmarkSavedToast";
 import { useClientConfig } from "@/lib/clientConfig";
 import { useTranslation } from "@/lib/i18n/client";
+import type { QuickAddMode } from "@/lib/store/useQuickAddStore";
 import { cn, getOS } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -24,6 +25,32 @@ import { useUploadAsset } from "../UploadDropzone";
 interface MultiUrlImportState {
   urls: URL[];
   text: string;
+}
+
+function isValidHttpUrl(candidate: string): boolean {
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Splits pasted text into non-blank, trimmed lines and separates the ones
+// that parse as http(s) URLs from the ones that don't. Shared by "auto"
+// mode's multi-url detection and the "link"/"multi-link" speed-dial modes so
+// there's exactly one definition of what counts as a valid pasted URL line.
+function splitUrlLines(text: string): { valid: string[]; invalid: string[] } {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  for (const line of lines) {
+    (isValidHttpUrl(line) ? valid : invalid).push(line);
+  }
+  return { valid, invalid };
 }
 
 export interface QuickAddFormProps {
@@ -44,6 +71,10 @@ export interface QuickAddFormProps {
   // Called in addition to the existing on-success behavior (form reset) -
   // e.g. the dialog uses this to close itself.
   onSuccess?: () => void;
+  // Pins the form to one explicit bookmark type. Defaults to "auto" so the
+  // inline EditorCard (which doesn't pass this prop) keeps its existing
+  // smart-detect behavior unchanged.
+  mode?: QuickAddMode;
 }
 
 export function QuickAddForm({
@@ -53,6 +84,7 @@ export function QuickAddForm({
   allowManualResize = false,
   autoFocus = false,
   onSuccess,
+  mode = "auto",
 }: QuickAddFormProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -108,25 +140,21 @@ export function QuickAddForm({
 
   const uploadAsset = useUploadAsset();
 
-  function tryToImportUrls(text: string): void {
-    const lines = text.split("\n");
-    const urls: URL[] = [];
-    for (const line of lines) {
-      // parsing can also throw an exception, but will be caught outside
-      const url = new URL(line);
-      if (url.protocol != "http:" && url.protocol != "https:") {
-        throw new Error("Invalid URL");
-      }
-      urls.push(url);
+  // Returns false when the text isn't a clean list of URLs, so the caller
+  // falls back to saving it as a text bookmark instead.
+  function tryToImportUrls(text: string): boolean {
+    const { valid, invalid } = splitUrlLines(text);
+    if (invalid.length > 0 || valid.length === 0) {
+      return false;
     }
-
-    if (urls.length === 1) {
+    if (valid.length === 1) {
       // Only 1 url in the textfield --> simply import it
-      mutate({ type: BookmarkTypes.LINK, url: text });
-      return;
+      mutate({ type: BookmarkTypes.LINK, url: valid[0] });
+      return true;
     }
     // multiple urls found --> ask the user if it should be imported as multiple URLs or as a text bookmark
-    setMultiUrlImportState({ urls, text });
+    setMultiUrlImportState({ urls: valid.map((url) => new URL(url)), text });
+    return true;
   }
 
   const onInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
@@ -147,10 +175,49 @@ export function QuickAddForm({
   const onSubmit: SubmitHandler<z.infer<typeof formSchema>> = (data) => {
     const text = data.text.trim();
     if (!text.length) return;
-    try {
-      tryToImportUrls(text);
-    } catch {
-      // Not a URL
+
+    if (mode === "note") {
+      mutate({ type: BookmarkTypes.TEXT, text });
+      return;
+    }
+
+    if (mode === "link") {
+      const { valid, invalid } = splitUrlLines(text);
+      if (valid.length + invalid.length !== 1) {
+        toast({
+          description: t("editor.use_multi_link_mode_hint"),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (invalid.length > 0) {
+        toast({
+          description: t("editor.invalid_url"),
+          variant: "destructive",
+        });
+        return;
+      }
+      mutate({ type: BookmarkTypes.LINK, url: valid[0] });
+      return;
+    }
+
+    if (mode === "multi-link") {
+      const { valid, invalid } = splitUrlLines(text);
+      if (invalid.length > 0) {
+        toast({
+          description: t("editor.invalid_urls_found", {
+            count: invalid.length,
+          }),
+          variant: "destructive",
+        });
+        return;
+      }
+      valid.forEach((url) => mutate({ type: BookmarkTypes.LINK, url }));
+      return;
+    }
+
+    if (!tryToImportUrls(text)) {
+      // Not a clean list of URLs
       mutate({ type: BookmarkTypes.TEXT, text });
     }
   };
@@ -212,6 +279,13 @@ export function QuickAddForm({
 
   const OS = getOS();
 
+  const placeholder = {
+    auto: t("editor.placeholder_v2"),
+    link: t("editor.quick_add_link_placeholder"),
+    note: t("editor.quick_add_note_placeholder"),
+    "multi-link": t("editor.quick_add_multi_link_placeholder"),
+  }[mode];
+
   return (
     <Form {...form}>
       <form
@@ -228,7 +302,7 @@ export function QuickAddForm({
                 "h-full w-full border-none p-0 text-sm font-light focus-visible:ring-0",
                 { "resize-none": !allowManualResize },
               )}
-              placeholder={t("editor.placeholder_v2")}
+              placeholder={placeholder}
               onKeyDown={(e) => {
                 if (demoMode) {
                   return;
