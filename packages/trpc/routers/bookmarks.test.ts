@@ -5,6 +5,7 @@ import {
   bookmarkLinks,
   bookmarks,
   rssFeedImportsTable,
+  rssFeedsTable,
   tagsOnBookmarks,
   users,
 } from "@karakeep/db/schema";
@@ -373,6 +374,34 @@ describe("Bookmark Routes", () => {
       expect(
         rssResult.bookmarks.some((b) => b.id === rssBookmark.id),
       ).toBeTruthy();
+
+      // Test podcastEpisodesOnly filter: not returned until the feed is
+      // flagged as a podcast, and excluded again for other users' podcasts.
+      const podcastResultBefore = await api.getBookmarks({
+        podcastEpisodesOnly: true,
+      });
+      expect(
+        podcastResultBefore.bookmarks.some((b) => b.id === rssBookmark.id),
+      ).toBeFalsy();
+
+      await db
+        .update(rssFeedsTable)
+        .set({ isPodcast: true })
+        .where(eq(rssFeedsTable.id, feedId));
+
+      const podcastResultAfter = await api.getBookmarks({
+        podcastEpisodesOnly: true,
+      });
+      expect(
+        podcastResultAfter.bookmarks.some((b) => b.id === rssBookmark.id),
+      ).toBeTruthy();
+
+      const otherUserPodcastResult = await apiCallers[1].bookmarks.getBookmarks(
+        { podcastEpisodesOnly: true },
+      );
+      expect(
+        otherUserPodcastResult.bookmarks.some((b) => b.id === rssBookmark.id),
+      ).toBeFalsy();
     }
 
     // Test listId filter

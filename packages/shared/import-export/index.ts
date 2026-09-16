@@ -1,5 +1,7 @@
 export * from "./exporters";
+export * from "./feedDiscovery";
 export * from "./importer";
+export * from "./opml";
 export type {
   ImportSource,
   ParsedBookmark,

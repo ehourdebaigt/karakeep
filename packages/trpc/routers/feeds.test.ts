@@ -152,6 +152,51 @@ describe("Feed Routes", () => {
     expect(user1List.feeds.some((f) => f.id === user2Feed.id)).toBe(false);
   });
 
+  test<CustomTestContext>("import feeds from OPML", async ({ apiCallers }) => {
+    const api = apiCallers[0].feeds;
+
+    // Pre-existing feed that the OPML also lists - should be skipped as a
+    // duplicate rather than imported twice.
+    await api.create({
+      name: "Already Subscribed",
+      url: "https://existing.com/feed.xml",
+      enabled: true,
+    });
+
+    const opml = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <body>
+    <outline type="rss" text="Existing" xmlUrl="https://existing.com/feed.xml"/>
+    <outline type="rss" text="New Feed" xmlUrl="https://new.com/feed.xml"/>
+  </body>
+</opml>`;
+
+    const result = await api.importOpml({ opml });
+
+    expect(result.created).toEqual(1);
+    expect(result.skippedDuplicate).toEqual(1);
+    expect(result.skippedQuota).toEqual(0);
+    expect(result.errors).toEqual([]);
+
+    const list = await api.list();
+    expect(list.feeds.some((f) => f.url === "https://new.com/feed.xml")).toBe(
+      true,
+    );
+  });
+
+  test<CustomTestContext>("export feeds to OPML", async ({ apiCallers }) => {
+    const api = apiCallers[0].feeds;
+    await api.create({
+      name: "Export Me",
+      url: "https://export-me.com/feed.xml",
+      enabled: true,
+    });
+
+    const { opml } = await api.exportOpml();
+    expect(opml).toContain("https://export-me.com/feed.xml");
+    expect(opml).toContain("Export Me");
+  });
+
   test<CustomTestContext>("feed limit enforcement", async ({ apiCallers }) => {
     const api = apiCallers[0].feeds;
 

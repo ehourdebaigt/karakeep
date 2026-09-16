@@ -19,6 +19,9 @@
     "@opentelemetry/semantic-conventions": "^1.38.0",
     "@opentelemetry/winston-transport": "^0.23.0",
     "@trpc/server": "^11.9.0",
+    "ipaddr.js": "^2.2.0",
+    "lru-cache": "^11.2.2",
+    "node-fetch": "^3.3.2",
     "winston": "^3.11.0"
   },
   "devDependencies": {

@@ -1544,6 +1544,15 @@ importers:
       '@trpc/server':
         specifier: ^11.9.0
         version: 11.9.0(typescript@5.9.3)
+      ipaddr.js:
+        specifier: ^2.2.0
+        version: 2.4.0
+      lru-cache:
+        specifier: ^11.2.2
+        version: 11.2.7
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
       winston:
         specifier: ^3.11.0
         version: 3.17.0
@@ -34678,7 +34687,7 @@ snapshots:
 
   path-scurry@2.0.0:
     dependencies:
-      lru-cache: 11.2.2
+      lru-cache: 11.2.7
       minipass: 7.1.2
 
   path-to-regexp@0.1.13: {}

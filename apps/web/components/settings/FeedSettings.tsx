@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ActionButton } from "@/components/ui/action-button";
-import FormattedDate from "@/components/ui/formatted-date";
+import FilePickerButton from "@/components/ui/file-picker-button";
 import {
   Form,
   FormControl,
@@ -12,6 +12,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import FormattedDate from "@/components/ui/formatted-date";
 import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/sonner";
@@ -25,10 +26,13 @@ import {
   CheckCircle,
   CircleDashed,
   CirclePlus,
+  Download,
   Edit,
   Plus,
   Save,
+  Search,
   Trash2,
+  Upload,
   XCircle,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -63,10 +67,21 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { SettingsPage, SettingsSection } from "./SettingsPage";
 
+function guessNameFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
 export function FeedsEditorDialog() {
   const api = useTRPC();
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
+  const [candidates, setCandidates] = React.useState<
+    { url: string; title?: string }[] | null
+  >(null);
   const queryClient = useQueryClient();
 
   const form = useForm({
@@ -76,12 +91,14 @@ export function FeedsEditorDialog() {
       url: "",
       enabled: true,
       importTags: false,
+      importFullContent: false,
     },
   });
 
   React.useEffect(() => {
     if (open) {
       form.reset();
+      setCandidates(null);
     }
   }, [open]);
 
@@ -96,6 +113,48 @@ export function FeedsEditorDialog() {
       },
     }),
   );
+
+  const { mutateAsync: discoverFeeds, isPending: isDiscovering } = useMutation(
+    api.feeds.discover.mutationOptions({
+      onError: (error) => {
+        toast({
+          description: `Could not discover a feed at that URL: ${error.message}`,
+          variant: "destructive",
+        });
+      },
+    }),
+  );
+
+  const applyCandidate = (candidate: { url: string; title?: string }) => {
+    form.setValue("url", candidate.url);
+    if (!form.getValues("name")) {
+      form.setValue("name", candidate.title ?? guessNameFromUrl(candidate.url));
+    }
+    setCandidates(null);
+  };
+
+  const handleDiscover = async () => {
+    const url = form.getValues("url");
+    if (!url) {
+      return;
+    }
+    setCandidates(null);
+    const { candidates: found } = await discoverFeeds({ url });
+    if (found.length === 0) {
+      toast({
+        description:
+          "No feed links found on that page. Using the URL you entered as the feed.",
+      });
+      if (!form.getValues("name")) {
+        form.setValue("name", guessNameFromUrl(url));
+      }
+    } else if (found.length === 1) {
+      applyCandidate(found[0]);
+      toast({ description: "Feed found!" });
+    } else {
+      setCandidates(found);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -140,14 +199,52 @@ export function FeedsEditorDialog() {
                 return (
                   <FormItem className="flex-1">
                     <FormLabel>URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Feed URL" type="text" {...field} />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder="Feed or website URL"
+                          type="text"
+                          {...field}
+                        />
+                      </FormControl>
+                      <ActionButton
+                        type="button"
+                        variant="secondary"
+                        loading={isDiscovering}
+                        onClick={handleDiscover}
+                        className="shrink-0 items-center"
+                      >
+                        <Search className="mr-2 size-4" />
+                        Discover
+                      </ActionButton>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Paste a feed URL, a website&apos;s homepage, or an Apple
+                      Podcasts link to auto-detect its feed.
+                    </div>
                     <FormMessage />
                   </FormItem>
                 );
               }}
             />
+            {candidates && candidates.length > 1 && (
+              <div className="flex flex-col gap-2 rounded-lg border p-3">
+                <div className="text-sm font-medium">
+                  Multiple feeds were found. Pick one:
+                </div>
+                {candidates.map((candidate) => (
+                  <Button
+                    key={candidate.url}
+                    type="button"
+                    variant="outline"
+                    className="justify-start overflow-hidden text-ellipsis whitespace-nowrap"
+                    onClick={() => applyCandidate(candidate)}
+                  >
+                    {candidate.title ?? candidate.url}
+                  </Button>
+                ))}
+              </div>
+            )}
             <FormField
               control={form.control}
               name="importTags"
@@ -158,6 +255,29 @@ export function FeedsEditorDialog() {
                       <FormLabel>Import Tags</FormLabel>
                       <div className="text-sm text-muted-foreground">
                         Automatically import categories from RSS feed as tags
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                );
+              }}
+            />
+            <FormField
+              control={form.control}
+              name="importFullContent"
+              render={({ field }) => {
+                return (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Import Full Content</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Store the full article content provided by the feed,
+                        instead of relying solely on crawling the link
                       </div>
                     </div>
                     <FormControl>
@@ -207,6 +327,7 @@ export function EditFeedDialog({ feed }: { feed: ZFeed }) {
         name: feed.name,
         url: feed.url,
         importTags: feed.importTags,
+        importFullContent: feed.importFullContent,
       });
     }
   }, [open]);
@@ -228,6 +349,7 @@ export function EditFeedDialog({ feed }: { feed: ZFeed }) {
       name: feed.name,
       url: feed.url,
       importTags: feed.importTags,
+      importFullContent: feed.importFullContent,
     },
   });
   return (
@@ -313,6 +435,29 @@ export function EditFeedDialog({ feed }: { feed: ZFeed }) {
                     <FormControl>
                       <Switch
                         checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                );
+              }}
+            />
+            <FormField
+              control={form.control}
+              name="importFullContent"
+              render={({ field }) => {
+                return (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Import Full Content</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Store the full article content provided by the feed,
+                        instead of relying solely on crawling the link
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value ?? false}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
@@ -469,6 +614,88 @@ export function FeedRow({ feed }: { feed: ZFeed }) {
   );
 }
 
+function OpmlImportExportButtons() {
+  const api = useTRPC();
+  const queryClient = useQueryClient();
+
+  const { mutateAsync: importOpml, isPending: isImporting } = useMutation(
+    api.feeds.importOpml.mutationOptions({
+      onSuccess: (result) => {
+        queryClient.invalidateQueries(api.feeds.list.pathFilter());
+        const parts = [`${result.created} feed(s) imported`];
+        if (result.skippedDuplicate > 0) {
+          parts.push(`${result.skippedDuplicate} already subscribed`);
+        }
+        if (result.skippedQuota > 0) {
+          parts.push(`${result.skippedQuota} skipped (quota reached)`);
+        }
+        if (result.errors.length > 0) {
+          parts.push(`${result.errors.length} failed`);
+        }
+        toast({ description: parts.join(", ") });
+      },
+      onError: (error) => {
+        toast({
+          description: `Failed to import OPML file: ${error.message}`,
+          variant: "destructive",
+        });
+      },
+    }),
+  );
+
+  const { refetch: fetchOpml, isFetching: isExporting } = useQuery({
+    ...api.feeds.exportOpml.queryOptions(),
+    enabled: false,
+  });
+
+  const onExport = async () => {
+    const { data, error } = await fetchOpml();
+    if (error) {
+      toast({
+        description: `Failed to export OPML file: ${error.message}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!data) {
+      return;
+    }
+    const blob = new Blob([data.opml], { type: "text/x-opml" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "karakeep-feeds.opml";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <FilePickerButton
+        variant="secondary"
+        accept=".opml,.xml"
+        loading={isImporting}
+        onFileSelect={async (file) => {
+          const opml = await file.text();
+          await importOpml({ opml });
+        }}
+      >
+        <Upload className="mr-2 size-4" />
+        Import OPML
+      </FilePickerButton>
+      <ActionButton
+        variant="secondary"
+        loading={isExporting}
+        onClick={onExport}
+        className="items-center"
+      >
+        <Download className="mr-2 size-4" />
+        Export OPML
+      </ActionButton>
+    </div>
+  );
+}
+
 export default function FeedSettings() {
   const api = useTRPC();
   const { t } = useTranslation();
@@ -476,7 +703,12 @@ export default function FeedSettings() {
   return (
     <SettingsPage
       title={t("settings.feeds.rss_subscriptions")}
-      action={<FeedsEditorDialog />}
+      action={
+        <div className="flex gap-2">
+          <OpmlImportExportButtons />
+          <FeedsEditorDialog />
+        </div>
+      }
     >
       <SettingsSection>
         {isLoading && <FullPageSpinner />}

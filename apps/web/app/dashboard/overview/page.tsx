@@ -15,40 +15,47 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DashboardOverviewPage() {
-  const [readItLater, notes, rss, favourites, archive] = await Promise.all([
-    api.bookmarks.getBookmarks({
-      type: BookmarkTypes.LINK,
-      archived: false,
-      excludeSnoozed: true,
-      limit: 12,
-    }),
-    api.bookmarks.getBookmarks({
-      type: BookmarkTypes.TEXT,
-      archived: false,
-      excludeSnoozed: true,
-      limit: 12,
-    }),
-    api.bookmarks.getBookmarks({
-      source: "rss",
-      archived: false,
-      excludeSnoozed: true,
-      limit: 12,
-    }),
-    api.bookmarks.getBookmarks({
-      favourited: true,
-      archived: false,
-      excludeSnoozed: true,
-      limit: 12,
-    }),
-    api.bookmarks.getBookmarks({
-      archived: true,
-      limit: 12,
-    }),
-  ]);
+  const [readItLater, notes, rss, podcasts, favourites, archive] =
+    await Promise.all([
+      api.bookmarks.getBookmarks({
+        type: BookmarkTypes.LINK,
+        archived: false,
+        excludeSnoozed: true,
+        limit: 12,
+      }),
+      api.bookmarks.getBookmarks({
+        type: BookmarkTypes.TEXT,
+        archived: false,
+        excludeSnoozed: true,
+        limit: 12,
+      }),
+      api.bookmarks.getBookmarks({
+        source: "rss",
+        archived: false,
+        excludeSnoozed: true,
+        limit: 12,
+      }),
+      api.bookmarks.getBookmarks({
+        podcastEpisodesOnly: true,
+        archived: false,
+        excludeSnoozed: true,
+        limit: 12,
+      }),
+      api.bookmarks.getBookmarks({
+        favourited: true,
+        archived: false,
+        excludeSnoozed: true,
+        limit: 12,
+      }),
+      api.bookmarks.getBookmarks({
+        archived: true,
+        limit: 12,
+      }),
+    ]);
 
   return (
     <DashboardOverview
-      sections={{ readItLater, notes, rss, favourites, archive }}
+      sections={{ readItLater, notes, rss, podcasts, favourites, archive }}
     />
   );
 }

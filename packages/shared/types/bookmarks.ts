@@ -292,6 +292,11 @@ export const zGetBookmarksRequestSchema = z.object({
   listId: z.string().optional(),
   rssFeedId: z.string().optional(),
   clusterId: z.string().optional(),
+  // Restricts to bookmarks imported from feeds that were auto-detected as
+  // podcasts (see `isPodcast` on the feed). Mutually exclusive with
+  // listId/tagId/rssFeedId/clusterId, same as those filters are with each
+  // other.
+  podcastEpisodesOnly: z.boolean().optional(),
   // Content-type filter (e.g. restrict to text-only "notes"). Optional and
   // additive - existing callers that don't set it are unaffected.
   type: z

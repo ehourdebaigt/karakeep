@@ -2,7 +2,14 @@
 
 import { useTranslation } from "@/lib/i18n/client";
 import { useQuickAddStore } from "@/lib/store/useQuickAddStore";
-import { Archive, BookOpenText, NotebookPen, Rss, Star } from "lucide-react";
+import {
+  Archive,
+  BookOpenText,
+  Headphones,
+  NotebookPen,
+  Rss,
+  Star,
+} from "lucide-react";
 
 import type { ZGetBookmarksResponse } from "@karakeep/shared/types/bookmarks";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
@@ -13,6 +20,7 @@ export interface DashboardOverviewSections {
   readItLater: ZGetBookmarksResponse;
   notes: ZGetBookmarksResponse;
   rss: ZGetBookmarksResponse;
+  podcasts: ZGetBookmarksResponse;
   favourites: ZGetBookmarksResponse;
   archive: ZGetBookmarksResponse;
 }
@@ -87,6 +95,25 @@ export default function DashboardOverview({
           icon: Rss,
           title: t("dashboard.empty.rss_title"),
           description: t("dashboard.empty.rss_description"),
+          action: {
+            label: t("dashboard.empty.add_a_feed"),
+            href: "/settings/feeds",
+          },
+        }}
+      />
+      <DashboardRow
+        title={t("dashboard.podcasts")}
+        query={{
+          podcastEpisodesOnly: true,
+          archived: false,
+          excludeSnoozed: true,
+          limit: 12,
+        }}
+        initialBookmarks={sections.podcasts}
+        emptyState={{
+          icon: Headphones,
+          title: t("dashboard.empty.podcasts_title"),
+          description: t("dashboard.empty.podcasts_description"),
           action: {
             label: t("dashboard.empty.add_a_feed"),
             href: "/settings/feeds",
