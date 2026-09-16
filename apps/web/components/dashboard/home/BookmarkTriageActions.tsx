@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTranslation } from "@/lib/i18n/client";
-import { addDays } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
 import { BookCheck, Clock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -133,7 +133,7 @@ export function BookmarkTriageActions({ bookmark }: { bookmark: ZBookmark }) {
               mode="single"
               selected={undefined}
               onSelect={(date) => date && snooze(date)}
-              disabled={(date) => date < new Date()}
+              disabled={(date) => date < startOfDay(new Date())}
             />
           </div>
         </PopoverContent>

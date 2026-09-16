@@ -1,14 +1,15 @@
-import http from "node:http";
-import https from "node:https";
-import { Readable } from "node:stream";
-import type { HeadersInit, RequestInit, Response } from "node-fetch";
+import type { Headers, RequestInit } from "node-fetch";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import fetch, { Headers } from "node-fetch";
+import fetch from "node-fetch";
 
 import {
+  closeResponseBody,
+  cloneHeaders,
   createPinnedLookup,
+  getPinnedDnsAgent,
   hostnameMatchesAnyPattern,
+  isRedirectResponse,
   validateUrl,
 } from "@karakeep/shared-server";
 import type { UrlValidationResult } from "@karakeep/shared-server";
@@ -25,13 +26,6 @@ export function getBookmarkDomain(url?: string | null): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-function getPinnedDnsAgent(url: URL, addresses: string[]) {
-  const options = { lookup: createPinnedLookup(addresses) };
-  return url.protocol === "https:"
-    ? new https.Agent(options)
-    : new http.Agent(options);
 }
 
 export function getRandomProxy(proxyList: string[]): string {
@@ -106,62 +100,6 @@ export function getProxyAgent(url: string, runProxy?: RunProxyConfig) {
   }
 
   return undefined;
-}
-
-function cloneHeaders(init?: HeadersInit): Headers {
-  const headers = new Headers();
-  if (!init) {
-    return headers;
-  }
-  if (init instanceof Headers) {
-    init.forEach((value, key) => {
-      headers.set(key, value);
-    });
-    return headers;
-  }
-
-  if (Array.isArray(init)) {
-    for (const [key, value] of init) {
-      headers.append(key, value);
-    }
-    return headers;
-  }
-
-  for (const [key, value] of Object.entries(init)) {
-    if (Array.isArray(value)) {
-      headers.set(key, value.join(", "));
-    } else if (value !== undefined) {
-      headers.set(key, value);
-    }
-  }
-
-  return headers;
-}
-
-function isRedirectResponse(response: Response): boolean {
-  return (
-    response.status === 301 ||
-    response.status === 302 ||
-    response.status === 303 ||
-    response.status === 307 ||
-    response.status === 308
-  );
-}
-
-function closeResponseBody(response: Response): void {
-  const body: unknown = response.body;
-  if (!body) {
-    return;
-  }
-
-  if (body instanceof Readable) {
-    body.destroy();
-  } else if (
-    typeof ReadableStream !== "undefined" &&
-    body instanceof ReadableStream
-  ) {
-    void body.cancel();
-  }
 }
 
 export type FetchWithProxyOptions = Omit<

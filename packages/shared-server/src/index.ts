@@ -6,4 +6,5 @@ export * from "./eventLogger";
 export * from "./tracing";
 export * from "./eventLogTypes";
 export * from "./urlValidation";
+export * from "./fetchUtils";
 export * from "./safeFetch";

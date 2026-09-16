@@ -59,7 +59,7 @@ export default function DashboardOverview({
           description: t("dashboard.empty.read_it_later_description"),
           action: {
             label: t("dashboard.empty.save_something"),
-            onClick: openQuickAdd,
+            onClick: () => openQuickAdd(),
           },
         }}
       />
@@ -78,7 +78,7 @@ export default function DashboardOverview({
           description: t("dashboard.empty.notes_description"),
           action: {
             label: t("dashboard.empty.write_a_note"),
-            onClick: openQuickAdd,
+            onClick: () => openQuickAdd(),
           },
         }}
       />
