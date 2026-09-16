@@ -11,6 +11,7 @@ import {
 import type { AuthedContext } from "../index";
 import { createScopedAuthedProcedure, router } from "../index";
 import { actorFromContext } from "../lib/actor";
+import { discoverFeeds } from "../lib/feedDiscovery";
 import { FeedsService } from "../models/feeds.service";
 
 const feedsProcedure = createScopedAuthedProcedure("feeds").use((opts) => {
@@ -90,5 +91,35 @@ export const feedsAppRouter = router({
           groupId: ctx.user.id,
         },
       );
+    }),
+  discover: feedsProcedure
+    .input(z.object({ url: z.string().max(2000).url() }))
+    .output(
+      z.object({
+        candidates: z.array(
+          z.object({ url: z.string(), title: z.string().optional() }),
+        ),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return { candidates: await discoverFeeds(input.url) };
+    }),
+  importOpml: feedsProcedure
+    .input(z.object({ opml: z.string().max(5_000_000) }))
+    .output(
+      z.object({
+        created: z.number(),
+        skippedDuplicate: z.number(),
+        skippedQuota: z.number(),
+        errors: z.array(z.object({ url: z.string(), error: z.string() })),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      return await ctx.feedsService.importOpml(ctx.actor, input.opml);
+    }),
+  exportOpml: feedsProcedure
+    .output(z.object({ opml: z.string() }))
+    .query(async ({ ctx }) => {
+      return { opml: await ctx.feedsService.exportOpml(ctx.actor) };
     }),
 });

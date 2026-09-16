@@ -15,7 +15,8 @@ import logger from "@karakeep/shared/logger";
 import { DequeuedJob, getQueueClient } from "@karakeep/shared/queueing";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 
-import { parseFeedItems } from "./utils/feedParser";
+import { storeFeedItemContentAsset } from "./utils/feedContentAsset";
+import { parseFeed } from "./utils/feedParser";
 
 type FeedRunResult = "success" | "failure";
 
@@ -244,8 +245,9 @@ async function run(
   );
 
   let feedItems;
+  let isPodcast;
   try {
-    feedItems = await parseFeedItems(xmlData);
+    ({ items: feedItems, isPodcast } = await parseFeed(xmlData));
   } catch (error) {
     logger.warn(
       `[feed][${jobId}] Failed to parse feed "${feed.name}" (${feed.id}): ${getErrorMessage(error)}. Skipping until the next scheduled fetch.`,
@@ -253,10 +255,13 @@ async function run(
     return "failure";
   }
 
-  addLogFields<"feedWorker.run">({ "feed.items_found": feedItems.length });
+  addLogFields<"feedWorker.run">({
+    "feed.items_found": feedItems.length,
+    "feed.is_podcast": isPodcast,
+  });
   await db
     .update(rssFeedsTable)
-    .set({ lastSuccessfulFetchAt: new Date() })
+    .set({ lastSuccessfulFetchAt: new Date(), isPodcast })
     .where(eq(rssFeedsTable.id, feed.id));
 
   logger.info(
@@ -299,13 +304,24 @@ async function run(
 
   const trpcClient = await buildImpersonatingTRPCClient(feed.userId);
 
+  const precrawledArchiveIds = feed.importFullContent
+    ? await Promise.all(
+        newEntries.map((item) =>
+          storeFeedItemContentAsset(item.content, feed.userId, jobId),
+        ),
+      )
+    : newEntries.map(() => null);
+
   const createdBookmarks = await Promise.allSettled(
-    newEntries.map((item) =>
+    newEntries.map((item, idx) =>
       trpcClient.bookmarks.createBookmark({
         type: BookmarkTypes.LINK,
         url: item.link!,
         title: item.title,
         source: "rss",
+        ...(precrawledArchiveIds[idx]
+          ? { precrawledArchiveId: precrawledArchiveIds[idx]! }
+          : {}),
       }),
     ),
   );

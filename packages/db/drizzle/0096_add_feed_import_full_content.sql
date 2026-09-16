@@ -1,0 +1,1 @@
+ALTER TABLE `rssFeeds` ADD `importFullContent` integer DEFAULT false NOT NULL;

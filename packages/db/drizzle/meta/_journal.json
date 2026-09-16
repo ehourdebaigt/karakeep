@@ -673,6 +673,20 @@
       "when": 1789454073200,
       "tag": "0095_add_bookmark_snoozed_until",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "6",
+      "when": 1789472072118,
+      "tag": "0096_add_feed_import_full_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "6",
+      "when": 1789496453806,
+      "tag": "0097_add_feed_is_podcast",
+      "breakpoints": true
     }
   ]
 }

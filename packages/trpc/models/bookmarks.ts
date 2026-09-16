@@ -32,6 +32,7 @@ import {
   bookmarkTags,
   bookmarkTexts,
   rssFeedImportsTable,
+  rssFeedsTable,
   tagsOnBookmarks,
 } from "@karakeep/db/schema";
 import {
@@ -449,19 +450,21 @@ export class Bookmark extends BareBookmark {
         : DEFAULT_NUM_BOOKMARKS_PER_PAGE;
     }
 
-    // Validate that only one of listId, tagId, rssFeedId, or clusterId is specified
+    // Validate that only one of listId, tagId, rssFeedId, clusterId, or
+    // podcastEpisodesOnly is specified.
     // Combined filters are not supported as they would require different query strategies
     const filterCount = [
       input.listId,
       input.tagId,
       input.rssFeedId,
       input.clusterId,
+      input.podcastEpisodesOnly ? true : undefined,
     ].filter((f) => f !== undefined).length;
     if (filterCount > 1) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message:
-          "Cannot filter by multiple of listId, tagId, rssFeedId, and clusterId simultaneously",
+          "Cannot filter by multiple of listId, tagId, rssFeedId, clusterId, and podcastEpisodesOnly simultaneously",
       });
     }
 
@@ -618,6 +621,32 @@ export class Bookmark extends BareBookmark {
             and(
               eq(rssFeedImportsTable.rssFeedId, input.rssFeedId),
               eq(bookmarks.userId, ctx.user.id), // Access control
+              ...buildCommonFilters(),
+              buildCursorCondition(bookmarks.createdAt, bookmarks.id),
+            ),
+          )
+          .limit(input.limit + 1)
+          .orderBy(...buildOrderBy()),
+      );
+    } else if (input.podcastEpisodesOnly) {
+      // PATH: Podcast episodes - start from rssFeedImportsTable, restricted to
+      // feeds owned by the user that were auto-detected as podcasts
+      sq = ctx.db.$with("bookmarksSq").as(
+        ctx.db
+          .select(getTableColumns(bookmarks))
+          .from(rssFeedImportsTable)
+          .innerJoin(
+            rssFeedsTable,
+            eq(rssFeedsTable.id, rssFeedImportsTable.rssFeedId),
+          )
+          .innerJoin(
+            bookmarks,
+            eq(bookmarks.id, rssFeedImportsTable.bookmarkId),
+          )
+          .where(
+            and(
+              eq(rssFeedsTable.userId, ctx.user.id), // Access control
+              eq(rssFeedsTable.isPodcast, true),
               ...buildCommonFilters(),
               buildCursorCondition(bookmarks.createdAt, bookmarks.id),
             ),

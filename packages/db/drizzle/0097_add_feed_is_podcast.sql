@@ -1,0 +1,1 @@
+ALTER TABLE `rssFeeds` ADD `isPodcast` integer DEFAULT false NOT NULL;

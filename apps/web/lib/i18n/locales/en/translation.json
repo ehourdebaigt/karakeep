@@ -136,6 +136,7 @@
     "read_it_later": "Read It Later",
     "notes": "Notes",
     "rss": "RSS",
+    "podcasts": "Podcasts",
     "favourites": "Favourites",
     "archive": "Archive",
     "empty": {
@@ -145,6 +146,8 @@
       "notes_description": "Jot something down and it'll show up here.",
       "rss_title": "No RSS bookmarks yet",
       "rss_description": "Subscribe to a feed and new posts will show up here automatically.",
+      "podcasts_title": "No podcast episodes yet",
+      "podcasts_description": "Subscribe to a podcast feed and new episodes will show up here automatically.",
       "favourites_title": "No favourites yet",
       "favourites_description": "Star a bookmark to pin it here.",
       "archive_title": "Nothing archived yet",

@@ -820,6 +820,12 @@
           "importTags": {
             "type": "boolean"
           },
+          "importFullContent": {
+            "type": "boolean"
+          },
+          "isPodcast": {
+            "type": "boolean"
+          },
           "lastFetchedStatus": {
             "type": "string",
             "nullable": true,
@@ -849,6 +855,8 @@
           "url",
           "enabled",
           "importTags",
+          "importFullContent",
+          "isPodcast",
           "lastFetchedStatus",
           "lastFetchedAt",
           "lastSuccessfulFetchAt"
@@ -5188,6 +5196,10 @@
                   "importTags": {
                     "type": "boolean",
                     "default": false
+                  },
+                  "importFullContent": {
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "required": [
@@ -5324,6 +5336,9 @@
                     "type": "boolean"
                   },
                   "importTags": {
+                    "type": "boolean"
+                  },
+                  "importFullContent": {
                     "type": "boolean"
                   }
                 }

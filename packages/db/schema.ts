@@ -754,6 +754,14 @@ export const rssFeedsTable = sqliteTable(
     importTags: integer("importTags", { mode: "boolean" })
       .notNull()
       .default(false),
+    importFullContent: integer("importFullContent", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    // Auto-detected from the feed's contents (itunes namespace / episode
+    // enclosures) each time it's fetched - not user-configurable.
+    isPodcast: integer("isPodcast", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: createdAtField(),
     lastFetchedAt: integer("lastFetchedAt", { mode: "timestamp" }),
     lastSuccessfulFetchAt: integer("lastSuccessfulFetchAt", {

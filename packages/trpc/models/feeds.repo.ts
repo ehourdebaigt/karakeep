@@ -32,6 +32,7 @@ export class FeedsRepo {
         userId,
         enabled: input.enabled,
         importTags: input.importTags ?? false,
+        importFullContent: input.importFullContent ?? false,
       })
       .returning();
 
@@ -70,6 +71,7 @@ export class FeedsRepo {
         url: input.url,
         enabled: input.enabled,
         importTags: input.importTags,
+        importFullContent: input.importFullContent,
       })
       .where(eq(rssFeedsTable.id, id))
       .returning();

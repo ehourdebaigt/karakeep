@@ -55,6 +55,7 @@ type EventLogInternal =
       "feed.bookmarks_created"?: number;
       "feed.bookmarks_failed"?: number;
       "feed.skipped_quota"?: boolean;
+      "feed.is_podcast"?: boolean;
     }
   | {
       ["event.name"]: "assetPreprocessingWorker.run";
